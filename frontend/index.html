@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Заметки</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <main class="container">
+    <h1>Мои заметки</h1>
+    <p class="subtitle">Заметки сохраняются в PostgreSQL через Flask API.</p>
+
+    <form id="note-form">
+      <label for="note-text">Новая заметка</label>
+      <textarea
+        id="note-text"
+        name="text"
+        rows="4"
+        placeholder="Напишите заметку..."
+        required
+      ></textarea>
+
+      <div class="form-footer">
+        <button type="submit">Добавить</button>
+        <span id="message" class="message" aria-live="polite"></span>
+      </div>
+    </form>
+
+    <section class="notes-section">
+      <h2>Сохранённые заметки</h2>
+      <div id="loading">Загрузка заметок...</div>
+      <ul id="notes-list" class="notes-list"></ul>
+    </section>
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>
