@@ -1,3 +1,35 @@
+# Notes Service — лабораторные работы по облачным технологиям
+
+> Лаба 0: Flask-приложение с PostgreSQL.  
+> Лаба 1: nginx, HTTPS, балансировка двух backend-инстансов и отказоустойчивость.
+
+## Лаба 1 — быстрое развёртывание
+
+Подробная пошаговая инструкция с командами, проверками и устранением типичных проблем находится в **[README_LAB1.md](README_LAB1.md)**. Итоговый отчёт с архитектурой и результатами — **[lab1_report.md](lab1_report.md)**.
+
+Для запуска на Ubuntu/Debian нужны nginx, OpenSSL, `apache2-utils`, curl, Python 3 с venv и PostgreSQL. База и таблица `notes` подготавливаются по инструкции Лабы 0 ниже. Дальше:
+
+1. Разместите проект в `/opt/notes-lab` (или замените этот путь в `nginx/sites-available/lab1.conf`).
+2. Установите Python-зависимости из `backend/requirements.txt`.
+3. Добавьте `notes.local` и `second.local` в `/etc/hosts`, создайте локальный TLS-сертификат и файл Basic Auth.
+4. Установите конфигурацию nginx из `nginx/sites-available/` и `nginx/snippets/`, затем проверьте её командой `sudo nginx -t`.
+5. Запустите два backend-инстанса и проверки:
+
+```bash
+cd /opt/notes-lab
+export PYTHON_BIN="$PWD/backend/.venv/bin/python"
+export DB_HOST=127.0.0.1 DB_PORT=5432 DB_NAME=notes_db
+export DB_USER=notes_user DB_PASSWORD=notes_password
+export ADMIN_USER=admin ADMIN_PASSWORD=lab1admin
+chmod +x scripts/run_backend.sh scripts/stop_backends.sh scripts/check.sh
+./scripts/run_backend.sh
+./scripts/check.sh
+```
+
+Полные команды для создания сертификата и пользователя, установки nginx-конфигурации, ручной проверки балансировки и остановки окружения приведены в [инструкции по развёртыванию Лабы 1](README_LAB1.md).
+
+---
+
 # Notes Service - Лаба 0
 
 Минимальный сервис заметок из трёх частей: статический фронтенд, Flask-бэкенд и отдельная база данных PostgreSQL. Через форму в браузере можно добавить заметку, а после обновления страницы она останется в списке, потому что хранится в PostgreSQL.
