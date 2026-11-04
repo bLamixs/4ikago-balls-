@@ -169,10 +169,11 @@ sleep 2
 section "6. Статика: frontend, /docs/ и second.local"
 
 frontend_body="$("${CURL_BASE[@]}" "${HTTPS_URL}/" || true)"
-if contains "${frontend_body}" "Мои заметки"; then
-  pass "Главная страница Notes Service отдаётся nginx."
+frontend_js="$("${CURL_BASE[@]}" "${HTTPS_URL}/app.js" || true)"
+if contains "${frontend_body}" "Мои заметки" && contains "${frontend_js}" 'fetch("/api/notes")' && contains "${frontend_js}" 'method: "POST"'; then
+  pass "nginx отдаёт главную и JS-фронтенд, связанный с GET/POST API."
 else
-  fail "Главная страница Notes Service недоступна или содержит неожиданный ответ."
+  fail "Главная страница или JavaScript-фронтенд/API недоступны."
 fi
 
 docs_body="$("${CURL_BASE[@]}" "${HTTPS_URL}/docs/" || true)"
@@ -202,7 +203,30 @@ else
   fail "Неизвестный Host получил успешный ответ/контент соседнего сайта."
 fi
 
-section "7. Несуществующая страница: кастомная 404"
+section "7. Лаба 0: запись заметки в PostgreSQL и чтение после сохранения"
+
+TEST_NOTE="lab1-persistence-${BASHPID}-$(date +%s)"
+TEST_NOTE_JSON="$(printf '{\"text\":\"%s\"}' "${TEST_NOTE}")"
+create_response="$("${CURL_BASE[@]}" --include --request POST \
+  --header "Content-Type: application/json" \
+  --data "${TEST_NOTE_JSON}" "${HTTPS_URL}/api/notes" || true)"
+echo "${create_response}"
+
+if grep -Eq "HTTP/[0-9.]+ 201" <<<"${create_response}" && contains "${create_response}" "${TEST_NOTE}"; then
+  pass "POST /api/notes записал заметку и вернул HTTP 201."
+else
+  fail "POST /api/notes не сохранил заметку или не вернул HTTP 201."
+fi
+
+notes_response="$("${CURL_BASE[@]}" --include "${HTTPS_URL}/api/notes" || true)"
+echo "${notes_response}"
+
+if grep -Eq "HTTP/[0-9.]+ 200" <<<"${notes_response}" && contains "${notes_response}" "${TEST_NOTE}"; then
+  pass "GET /api/notes вернул сохранённую запись из PostgreSQL."
+else
+  fail "GET /api/notes не вернул только что сохранённую запись."
+fi
+section "8. Несуществующая страница: кастомная 404"
 
 not_found_headers="$(print_headers "${HTTPS_URL}/this-page-does-not-exist")"
 not_found_body="$("${CURL_BASE[@]}" "${HTTPS_URL}/this-page-does-not-exist" || true)"
@@ -218,7 +242,7 @@ else
   fail "Не найдены ожидаемые HTTP 404 и/или текст кастомной 404."
 fi
 
-section "8. Отказоустойчивость: остановить backend-1 и проверить /api"
+section "9. Отказоустойчивость: остановить backend-1 и проверить /api"
 
 backend1_pid_file="${RUNTIME_DIR}/backend-1.pid"
 
