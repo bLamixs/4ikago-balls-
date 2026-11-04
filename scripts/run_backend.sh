@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Запускает два Flask-инстанса для upstream nginx.
 # Запускайте из любого каталога:
-#   /opt/notes-lab/scripts/run_backends.sh
+#   /opt/notes-lab/scripts/run_backend.sh
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
@@ -55,7 +55,7 @@ start_backend() {
 
     export DB_HOST DB_PORT DB_NAME DB_USER DB_PASSWORD
     export PORT="${port}"
-    export BACKEND_ID="${backend_id}"
+    export INSTANCE_ID="${backend_id}"
 
     exec "${PYTHON_BIN}" app.py
   ) >"${log_file}" 2>&1 &

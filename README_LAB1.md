@@ -54,7 +54,7 @@ nginx должен:
 Если проект находится не в `/opt/notes-lab`, замените путь:
 
 ```bash
-sudo sed -i 's#/opt/notes-lab#/ваш/абсолютный/путь#g' nginx/lab1.conf
+sudo sed -i 's#/opt/notes-lab#/ваш/абсолютный/путь#g' nginx/sites-available/lab1.conf
 ```
 
 ## 1. Установка системных пакетов
@@ -90,7 +90,7 @@ deactivate
 export PYTHON_BIN=/opt/notes-lab/backend/.venv/bin/python
 ```
 
-Эту переменную можно экспортировать перед `scripts/run_backends.sh`.
+Эту переменную можно экспортировать перед `scripts/run_backend.sh`.
 
 ## 3. Hosts-записи
 
@@ -180,7 +180,7 @@ sudo cp /opt/notes-lab/nginx/snippets/proxy_params_lab1.conf \
 Скопируйте конфиг сайта:
 
 ```bash
-sudo cp /opt/notes-lab/nginx/lab1.conf \
+sudo cp /opt/notes-lab/nginx/sites-available/lab1.conf \
   /etc/nginx/sites-available/lab1.conf
 ```
 
@@ -250,7 +250,7 @@ export DB_PASSWORD=notes_password
 Сделайте скрипты исполняемыми:
 
 ```bash
-chmod +x scripts/run_backends.sh
+chmod +x scripts/run_backend.sh
 chmod +x scripts/stop_backends.sh
 chmod +x scripts/check.sh
 ```
@@ -258,7 +258,7 @@ chmod +x scripts/check.sh
 Запустите обе копии:
 
 ```bash
-./scripts/run_backends.sh
+./scripts/run_backend.sh
 ```
 
 Проверьте процессы и порты:
@@ -299,14 +299,14 @@ curl -I http://notes.local/
 
 ```text
 HTTP/1.1 301 Moved Permanently
-Location: [https://notes.local/](https://notes.local/)
+Location: https://notes.local/
 ```
 
 Балансировка:
 
 ```bash
 for i in {1..8}; do
-  curl -skI [https://notes.local/api/whoami](https://notes.local/api/whoami) | grep -iE 'HTTP/|X-Backend-ID'
+  curl -skI https://notes.local/api/whoami | grep -iE 'HTTP/|X-Backend-ID'
 done
 ```
 
@@ -320,13 +320,13 @@ X-Backend-ID: backend-2
 Alias:
 
 ```bash
-curl -sk [https://notes.local/docs/](https://notes.local/docs/)
+curl -sk https://notes.local/docs/
 ```
 
 Admin без пароля:
 
 ```bash
-curl -skI [https://notes.local/admin/](https://notes.local/admin/)
+curl -skI https://notes.local/admin/
 ```
 
 Ожидается:
@@ -338,7 +338,7 @@ HTTP/1.1 401 Unauthorized
 Admin с паролем:
 
 ```bash
-curl -skI -u admin:lab1admin [https://notes.local/admin/](https://notes.local/admin/)
+curl -skI -u admin:lab1admin https://notes.local/admin/
 ```
 
 Ожидается:
@@ -350,7 +350,7 @@ HTTP/1.1 200 OK
 Второй виртуальный хост:
 
 ```bash
-curl -sk [https://second.local/](https://second.local/)
+curl -sk https://second.local/
 ```
 
 Должен быть текст:
@@ -362,7 +362,7 @@ Second Local Project
 Неизвестный Host:
 
 ```bash
-curl -skI [https://127.0.0.1/](https://127.0.0.1/) -H 'Host: unknown.local'
+curl -skI https://127.0.0.1/ -H 'Host: unknown.local'
 ```
 
 Ожидается обрыв соединения (`444`) либо отсутствие HTTP-ответа, но не `200` с интерфейсом заметок.
@@ -370,7 +370,7 @@ curl -skI [https://127.0.0.1/](https://127.0.0.1/) -H 'Host: unknown.local'
 Кастомная 404:
 
 ```bash
-curl -sk [https://notes.local/no-such-page](https://notes.local/no-such-page)
+curl -sk https://notes.local/no-such-page
 ```
 
 Должен быть текст:
@@ -382,9 +382,7 @@ curl -sk [https://notes.local/no-such-page](https://notes.local/no-such-page)
 Rate limit:
 
 ```bash
-for i in {1..40}; do
-  curl -sk -o /dev/null -w '%{http_code}\n' [https://notes.local/api/whoami](https://notes.local/api/whoami)
-done
+seq 1 40 | xargs -P 20 -I {} curl -sk -o /dev/null -w '%{http_code}\n' https://notes.local/api/whoami
 ```
 
 Среди кодов должен появиться `429`.
@@ -417,14 +415,14 @@ export ADMIN_PASSWORD=lab1admin
 Перед началом оба инстанса должны работать:
 
 ```bash
-./scripts/run_backends.sh
+./scripts/run_backend.sh
 ```
 
 Убедитесь в балансировке:
 
 ```bash
 for i in {1..6}; do
-  curl -skI [https://notes.local/api/whoami](https://notes.local/api/whoami) | grep -iE 'HTTP/|X-Backend-ID'
+  curl -skI https://notes.local/api/whoami | grep -iE 'HTTP/|X-Backend-ID'
 done
 ```
 
@@ -439,7 +437,7 @@ rm -f runtime/backend-1.pid
 
 ```bash
 for i in {1..5}; do
-  curl -skI [https://notes.local/api/whoami](https://notes.local/api/whoami) | grep -iE 'HTTP/|X-Backend-ID'
+  curl -skI https://notes.local/api/whoami | grep -iE 'HTTP/|X-Backend-ID'
 done
 ```
 
@@ -454,7 +452,7 @@ sudo tail -f /var/log/nginx/notes-lab-error.log
 Восстановите первый процесс:
 
 ```bash
-./scripts/run_backends.sh
+./scripts/run_backend.sh
 ```
 
 ## Остановка окружения
@@ -485,10 +483,11 @@ sudo systemctl stop nginx
 
 Приложить:
 
-- `nginx/lab1.conf`;
+- `nginx/sites-available/lab1.conf`;
 - `nginx/snippets/proxy_params_lab1.conf`;
 - изменённый `backend/app.py`;
-- `scripts/run_backends.sh`;
+- `scripts/run_backend.sh`;
+- `scripts/stop_backends.sh`;
 - `scripts/check.sh`.
 
 ### 4. Скриншоты

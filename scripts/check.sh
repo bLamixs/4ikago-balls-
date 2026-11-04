@@ -68,7 +68,7 @@ cleanup_backend_1() {
     rm -f "${pid_file}"
   fi
 
-  "${SCRIPT_DIR}/run_backends.sh" >/dev/null 2>&1 || true
+  "${SCRIPT_DIR}/run_backend.sh" >/dev/null 2>&1 || true
 }
 
 trap cleanup_backend_1 EXIT
@@ -83,7 +83,7 @@ echo
 health_headers="$(print_headers "${HTTPS_URL}/health")"
 echo "${health_headers}"
 
-if contains "${health_headers}" "HTTP/"; then
+if grep -Eq "HTTP/[0-9.]+ 200" <<<"${health_headers}"; then
   pass "nginx отвечает по HTTPS."
 else
   fail "nginx не отвечает по HTTPS. Проверьте nginx, hosts и сертификат."
@@ -94,7 +94,7 @@ section "1. HTTP должен редиректить на HTTPS (301)"
 redirect_headers="$(print_headers "${HTTP_URL}/")"
 echo "${redirect_headers}"
 
-if contains "${redirect_headers}" "HTTP/1.1 301" && contains "${redirect_headers}" "location: https://notes.local/"; then
+if grep -Eq "HTTP/[0-9.]+ 301" <<<"${redirect_headers}" && grep -qiF "Location: https://notes.local/" <<<"${redirect_headers}"; then
   pass "HTTP → HTTPS: получен 301 с Location: https://notes.local/."
 else
   fail "Нет ожидаемого HTTP 301 или неверный Location."
@@ -156,18 +156,12 @@ fi
 
 section "5. limit_req: серия запросов должна дать HTTP 429"
 
-RATE_CODES=""
-for i in {1..40}; do
-  code="$(http_status "${HTTPS_URL}/api/whoami")"
-  RATE_CODES+="${code} "
+RATE_CODES="$(seq 1 40 | xargs -P 20 -I {} curl --silent --show-error --insecure -o /dev/null -w '%{http_code}\n' "${HTTPS_URL}/api/whoami")"
 
-  printf 'request=%02d http=%s\n' "${i}" "${code}"
-done
+echo "HTTP-коды параллельных запросов:"
+printf '%s\n' "${RATE_CODES}"
 
-echo
-echo "Все коды: ${RATE_CODES}"
-
-if grep -Eq '(^| )429( |$)' <<<"${RATE_CODES}"; then
+if grep -qx '429' <<<"${RATE_CODES}"; then
   pass "Rate limit сработал: получен HTTP 429."
 else
   fail "Не получен HTTP 429. Возможно, изменён rate/burst или запросы выполнялись слишком медленно."
@@ -218,7 +212,7 @@ section "8. Отказоустойчивость: остановить backend-1
 backend1_pid_file="${RUNTIME_DIR}/backend-1.pid"
 
 if [[ ! -f "${backend1_pid_file}" ]]; then
-  fail "Не найден PID-файл backend-1: ${backend1_pid_file}. Сначала запустите run_backends.sh."
+  fail "Не найден PID-файл backend-1: ${backend1_pid_file}. Сначала запустите run_backend.sh."
 else
   backend1_pid="$(cat "${backend1_pid_file}")"
 

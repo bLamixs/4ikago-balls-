@@ -30,10 +30,17 @@ def get_db_connection():
     )
 
 
+@app.get("/api/whoami")
+def whoami():
+    response = jsonify({"backend_id": INSTANCE_ID})
+    response.headers["X-Backend-ID"] = INSTANCE_ID
+    return response
+
+
 @app.get("/health")
 def health():
     response = jsonify({"status": "ok", "instance_id": INSTANCE_ID})
-    response.headers["X-Backend-Instance"] = INSTANCE_ID
+    response.headers["X-Backend-ID"] = INSTANCE_ID
     return response
 
 
@@ -76,7 +83,7 @@ def get_notes():
             for row in rows
         ]
         response = jsonify(notes)
-        response.headers["X-Backend-Instance"] = INSTANCE_ID
+        response.headers["X-Backend-ID"] = INSTANCE_ID
         return response
 
     except OperationalError:
@@ -121,7 +128,7 @@ def create_note():
             "instance_id": INSTANCE_ID,
         }
         response = jsonify(result)
-        response.headers["X-Backend-Instance"] = INSTANCE_ID
+        response.headers["X-Backend-ID"] = INSTANCE_ID
         return response, 201
 
     except OperationalError:
