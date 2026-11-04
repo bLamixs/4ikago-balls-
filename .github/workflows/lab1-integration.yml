@@ -43,7 +43,8 @@ jobs:
       - name: Configure local hosts, TLS, auth, and nginx
         run: |
           printf '127.0.0.1 notes.local second.local\n' | sudo tee -a /etc/hosts
-          sudo ln -s "$GITHUB_WORKSPACE" /opt/notes-lab
+          sudo cp -a "$GITHUB_WORKSPACE" /opt/notes-lab
+          sudo chmod -R a+rX /opt/notes-lab
           sudo install -d -m 0755 /etc/nginx/lab1-certs /etc/nginx/lab1-auth
           sudo openssl req -x509 -nodes -days 1 -newkey rsa:2048 \
             -keyout /etc/nginx/lab1-certs/notes.local.key \
@@ -68,7 +69,7 @@ jobs:
 
       - name: Start Flask instances
         env:
-          PYTHON_BIN: /opt/notes-lab/backend/.venv/bin/python
+          PYTHON_BIN: ${{ github.workspace }}/backend/.venv/bin/python
           DB_HOST: 127.0.0.1
           DB_PORT: 5432
           DB_NAME: notes_db
@@ -80,7 +81,18 @@ jobs:
         env:
           ADMIN_USER: admin
           ADMIN_PASSWORD: lab1admin
+          PYTHON_BIN: ${{ github.workspace }}/backend/.venv/bin/python
+          DB_HOST: 127.0.0.1
+          DB_PORT: 5432
+          DB_NAME: notes_db
+          DB_USER: notes_user
+          DB_PASSWORD: notes_password
         run: ./scripts/check.sh 2>&1 | tee lab1-check.log
+
+      - name: Show nginx error logs
+        if: always()
+        run: |
+          sudo tail -n 100 /var/log/nginx/error.log /var/log/nginx/notes-lab-error.log /var/log/nginx/second-lab-error.log || true
 
       - name: Save check log
         if: always()

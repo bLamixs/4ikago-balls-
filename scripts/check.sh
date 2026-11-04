@@ -53,6 +53,8 @@ print_headers() {
 }
 
 cleanup_backend_1() {
+  local exit_code=$?
+  trap - EXIT
   local pid_file="${RUNTIME_DIR}/backend-1.pid"
 
   if [[ -f "${pid_file}" ]]; then
@@ -69,6 +71,7 @@ cleanup_backend_1() {
   fi
 
   "${SCRIPT_DIR}/run_backend.sh" >/dev/null 2>&1 || true
+  exit "${exit_code}"
 }
 
 trap cleanup_backend_1 EXIT
@@ -109,21 +112,15 @@ for i in {1..8}; do
   echo
   echo "--- Запрос ${i} ---"
 
-  headers="$(print_headers "${HTTPS_URL}/api/whoami")"
-  body="$("${CURL_BASE[@]}" "${HTTPS_URL}/api/whoami" || true)"
+  response="$("${CURL_BASE[@]}" --include "${HTTPS_URL}/api/whoami" || true)"
+  echo "${response}"
 
-  echo "HEADERS:"
-  echo "${headers}"
-  echo "BODY:"
-  echo "${body}"
-
-  backend_id="$(grep -i '^X-Backend-ID:' <<<"${headers}" | tr -d '\r' | awk '{print $2}' | tail -n 1 || true)"
-
+  backend_id="$(grep -i '^X-Backend-ID:' <<<"${response}" | tr -d '\r' | awk '{print $2}' | tail -n 1 || true)"
   if [[ -n "${backend_id}" ]]; then
     SEEN_BACKENDS["${backend_id}"]=1
   fi
 
-  WHOAMI_OUTPUT+="${headers}"$'\n'"${body}"$'\n'
+  sleep 0.3
 done
 
 if [[ -n "${SEEN_BACKENDS[backend-1]+x}" && -n "${SEEN_BACKENDS[backend-2]+x}" ]]; then
@@ -169,7 +166,30 @@ fi
 
 sleep 2
 
-section "6. Виртуальные хосты: second.local не должен отдавать Notes Service"
+section "6. Статика: frontend, /docs/ и second.local"
+
+frontend_body="$("${CURL_BASE[@]}" "${HTTPS_URL}/" || true)"
+if contains "${frontend_body}" "Мои заметки"; then
+  pass "Главная страница Notes Service отдаётся nginx."
+else
+  fail "Главная страница Notes Service недоступна или содержит неожиданный ответ."
+fi
+
+docs_body="$("${CURL_BASE[@]}" "${HTTPS_URL}/docs/" || true)"
+if contains "${docs_body}" "директиву" && contains "${docs_body}" "alias"; then
+  pass "/docs/ отдаёт документацию через alias."
+else
+  fail "/docs/ недоступен или не содержит ожидаемую страницу."
+fi
+
+second_body="$("${CURL_BASE[@]}" "${SECOND_URL}/" || true)"
+echo "${second_body}"
+
+if contains "${second_body}" "Second Local Project" && ! contains "${second_body}" "Мои заметки"; then
+  pass "second.local отдаёт отдельный сайт, а не фронтенд заметок."
+else
+  fail "second.local отдал неожиданный контент."
+fi
 
 second_body="$("${CURL_BASE[@]}" "${SECOND_URL}/" || true)"
 echo "${second_body}"
