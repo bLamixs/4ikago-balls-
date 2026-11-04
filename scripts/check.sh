@@ -191,15 +191,6 @@ else
   fail "second.local отдал неожиданный контент."
 fi
 
-second_body="$("${CURL_BASE[@]}" "${SECOND_URL}/" || true)"
-echo "${second_body}"
-
-if contains "${second_body}" "Second Local Project" && ! contains "${second_body}" "Мои заметки"; then
-  pass "second.local отдаёт только второй проект, а не фронтенд заметок."
-else
-  fail "second.local отдал неожиданный контент."
-fi
-
 echo
 echo "--- Неизвестный Host должен быть отклонён catch-all virtual host ---"
 unknown_headers="$(print_headers "https://127.0.0.1/" -H "Host: unknown.local")"
@@ -245,27 +236,26 @@ else
 
     sleep 1
 
-    failover_headers="$(print_headers "${HTTPS_URL}/api/whoami")"
-    failover_body="$("${CURL_BASE[@]}" "${HTTPS_URL}/api/whoami" || true)"
-
-    echo "HEADERS:"
-    echo "${failover_headers}"
-    echo "BODY:"
-    echo "${failover_body}"
-
-    if contains "${failover_headers}" "HTTP/1.1 200" && \
-       (contains "${failover_headers}" "X-Backend-ID: backend-2" || contains "${failover_body}" "\"backend_id\":\"backend-2\""); then
-      pass "После остановки backend-1 nginx вернул 200 от backend-2."
-    else
-      fail "Failover не подтверждён: ожидался HTTP 200 от backend-2."
-    fi
-
-    echo
-    echo "Ниже повторные запросы после падения backend-1:"
+    failover_ok=1
+    echo "Пять запросов после остановки backend-1 с интервалом 0.3 секунды:"
     for i in {1..5}; do
+      response="$("${CURL_BASE[@]}" --include "${HTTPS_URL}/api/whoami" || true)"
       echo "--- failover request ${i} ---"
-      print_headers "${HTTPS_URL}/api/whoami"
+      echo "${response}"
+
+      backend_id="$(grep -i '^X-Backend-ID:' <<<"${response}" | tr -d '\r' | awk '{print $2}' | tail -n 1 || true)"
+      if ! grep -Eq "HTTP/[0-9.]+ 200" <<<"${response}" || [[ "${backend_id}" != "backend-2" ]]; then
+        failover_ok=0
+      fi
+
+      sleep 0.3
     done
+
+    if [[ "${failover_ok}" -eq 1 ]]; then
+      pass "Все пять запросов после остановки backend-1 получили 200 от backend-2."
+    else
+      fail "Failover не подтвердился для всех пяти запросов от backend-2."
+    fi
   fi
 fi
 

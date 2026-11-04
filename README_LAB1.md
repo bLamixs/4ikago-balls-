@@ -307,6 +307,7 @@ Location: https://notes.local/
 ```bash
 for i in {1..8}; do
   curl -skI https://notes.local/api/whoami | grep -iE 'HTTP/|X-Backend-ID'
+  sleep 0.3
 done
 ```
 
@@ -423,6 +424,7 @@ export ADMIN_PASSWORD=lab1admin
 ```bash
 for i in {1..6}; do
   curl -skI https://notes.local/api/whoami | grep -iE 'HTTP/|X-Backend-ID'
+  sleep 0.3
 done
 ```
 
@@ -438,6 +440,7 @@ rm -f runtime/backend-1.pid
 ```bash
 for i in {1..5}; do
   curl -skI https://notes.local/api/whoami | grep -iE 'HTTP/|X-Backend-ID'
+  sleep 0.3
 done
 ```
 
