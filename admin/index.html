@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Notes — Admin</title>
+  <style>
+    body {
+      max-width: 720px;
+      margin: 60px auto;
+      padding: 0 20px;
+      font-family: Arial, sans-serif;
+      color: #172033;
+      background: #f5f7fb;
+    }
+
+    main {
+      padding: 30px;
+      background: #ffffff;
+      border-radius: 12px;
+      box-shadow: 0 8px 30px rgba(20, 40, 80, 0.12);
+    }
+
+    h1 {
+      margin-top: 0;
+    }
+
+    code {
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: #e8edf7;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Административная зона</h1>
+    <p>Эта страница доступна только после Basic Authentication.</p>
+    <p>Защита реализована на уровне nginx через <code>auth_basic</code> и <code>htpasswd</code>.</p>
+  </main>
+</body>
+</html>
