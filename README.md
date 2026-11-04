@@ -67,20 +67,61 @@ pg_isready -h 127.0.0.1 -p 5432
 127.0.0.1:5432 - accepting connections
 ```
 
-## Структура проекта
+## Структура репозитория в ветке Lab-1
+
+Здесь показан весь состав проекта, а не только Notes Service из Лабы 0:
 
 ```text
 .
 ├── .env.example
+├── .github/
+│   └── workflows/
+│       └── lab1-integration.yml
 ├── README.md
-├── backend
+├── README_LAB1.md
+├── admin/
+│   └── index.html
+├── backend/
 │   ├── app.py
 │   ├── init.sql
 │   └── requirements.txt
-└── frontend
-    ├── app.js
-    ├── index.html
-    └── style.css
+├── docs/
+│   └── index.html
+├── frontend/
+│   ├── app.js
+│   ├── index.html
+│   └── style.css
+├── lab1_report.md
+├── main.py                 # шаблон PyCharm, в лабораторной не используется
+├── nginx/
+│   ├── errors/
+│   │   ├── 404.html
+│   │   └── 50x.html
+│   ├── sites-available/
+│   │   └── lab1.conf
+│   └── snippets/
+│       └── proxy_params_lab1.conf
+├── other-site/
+│   └── index.html
+└── scripts/
+    ├── check.sh
+    ├── run_backend.sh
+    └── stop_backends.sh
+```
+
+### Базовое приложение Notes Service из Лабы 0
+
+Этот фрагмент показывает только Flask-приложение, которое использует Лаба 1:
+
+```text
+backend/
+├── app.py
+├── init.sql
+└── requirements.txt
+frontend/
+├── app.js
+├── index.html
+└── style.css
 ```
 
 ## Создание БД и пользователя
