@@ -6,7 +6,7 @@
 - **Дата:** 4 ноября 2026 г.
 - **Репозиторий:** [bLamixs/4ikago-balls-](https://github.com/bLamixs/4ikago-balls-)
 - **Pull request:** [№ 1 — лабораторная работа про nginx](https://github.com/bLamixs/4ikago-balls-/pull/1)
-- **Проверка в Linux:** [успешный прогон GitHub Actions](https://github.com/bLamixs/4ikago-balls-/actions/runs/41837650827)
+- **Проверка в Linux:** [успешный прогон GitHub Actions](https://github.com/bLamixs/4ikago-balls-/actions/runs/41846468734)
 
 > Основу работы начал Леха и Стас. Мы продолжили её вместе: свели приложение, nginx-конфигурацию, скрипты и инструкцию в одну работающую схему. По дороге выяснилось, что иногда самый сложный балансировщик - это просто несколько файлов, которые называют одну и ту же вещь по-разному.
 
@@ -86,7 +86,7 @@ sudo nginx -t
 
 ## Настройка окружения
 
-Ниже - воспроизводимая последовательность для Ubuntu/Debian. В GitHub Actions она была выполнена на временном Ubuntu runner с PostgreSQL 16.
+Ниже - воспроизводимая последовательность для Ubuntu/Debian. В GitHub Actions она была выполнена на временном Ubuntu runner с PostgreSQL 16. Конфигурация доступна в [`nginx/sites-available/lab1.conf`](nginx/sites-available/lab1.conf) и [`nginx/snippets/proxy_params_lab1.conf`](nginx/snippets/proxy_params_lab1.conf); автоматические проверки находятся в [`scripts/check.sh`](scripts/check.sh).
 
 ### 1. Установка пакетов
 
@@ -181,7 +181,7 @@ export DB_USER=notes_user DB_PASSWORD=notes_password
 
 Полный прогон выполнен в GitHub Actions на Ubuntu 26.04.1 с nginx 1.28.3 и PostgreSQL 16. Workflow создал локальный сертификат и пользователя Basic Auth, запустил два Flask-процесса, выполнил `nginx -t`, затем `scripts/check.sh`.
 
-**Итог автоматической проверки: 12 PASS, 0 FAIL.** [Полный запуск и логи](https://github.com/bLamixs/4ikago-balls-/actions/runs/41837650827).
+**Итог автоматической проверки: 14 PASS, 0 FAIL.** [Полный запуск и логи](https://github.com/bLamixs/4ikago-balls-/actions/runs/41846468734).
 
 | Проверка | Полученный результат |
 |---|---|
@@ -192,10 +192,12 @@ export DB_USER=notes_user DB_PASSWORD=notes_password
 | `/admin/` без пароля | `401 Unauthorized` |
 | `/admin/` с `admin:lab1admin` | `200 OK` |
 | Rate limit | Среди параллельных запросов получен `429 Too Many Requests` |
-| Главная страница | nginx отдал страницу «Мои заметки» |
+| Главная страница и JS-клиент | nginx отдал страницу и JS, выполняющий GET/POST запросы к API |
 | `/docs/` | nginx отдал документацию из `alias` |
 | `second.local` | Отдан отдельный сайт `Second Local Project` |
 | Неизвестный Host | Отклонён catch-all виртуальным хостом |
+| PostgreSQL: создание заметки | `POST /api/notes` вернул `201` с сохранённой заметкой |
+| PostgreSQL: чтение заметки | `GET /api/notes` вернул созданную заметку после записи |
 | Кастомная 404 | `404 Not Found` с текстом «404 — Страница не найдена» |
 | Failover | После остановки `backend-1` пять запросов подряд получили `200 OK` от `backend-2` |
 
@@ -225,6 +227,6 @@ X-Backend-ID: backend-2
 
 ## Вывод
 
-nginx принимает входящий трафик, перенаправляет HTTP на HTTPS, раздаёт статические страницы и балансирует запросы между двумя Flask-инстансами. Basic Authentication, rate limiting, виртуальные хосты, `alias`, собственная 404 и отказ одного backend-а проверены в Linux-прогоне.
+nginx принимает входящий трафик, перенаправляет HTTP на HTTPS, раздаёт статические страницы и балансирует запросы между двумя Flask-инстансами. Автоматизированный прогон также создаёт заметку через API и проверяет её повторное чтение из PostgreSQL. Basic Authentication, rate limiting, виртуальные хосты, `alias`, собственная 404 и отказ одного backend-а проверены в Linux-прогоне.
 
-Самая важная часть этой лабораторной оказалась на стыке компонентов: один endpoint должен одинаково называться в Flask, скриптах и README. После выравнивания имён и исправления обработчика `trap` автоматическая проверка стала отражать реальный результат, а не просто зелёный статус. Исходники и полный журнал прогона доступны в [PR № 1](https://github.com/bLamixs/4ikago-balls-/pull/1) и [GitHub Actions](https://github.com/bLamixs/4ikago-balls-/actions/runs/41837650827).
+Самая важная часть этой лабораторной оказалась на стыке компонентов: один endpoint должен одинаково называться в Flask, скриптах и README. После выравнивания имён и исправления обработчика `trap` автоматическая проверка стала отражать реальный результат, а не просто зелёный статус. Исходники и полный журнал прогона доступны в [PR № 1](https://github.com/bLamixs/4ikago-balls-/pull/1) и [GitHub Actions](https://github.com/bLamixs/4ikago-balls-/actions/runs/41846468734).
