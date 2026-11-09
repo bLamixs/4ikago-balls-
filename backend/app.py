@@ -16,9 +16,11 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(message)s",
 )
 
+# Идентификатор инстанса для демонстрации балансировки
+INSTANCE_ID = os.getenv("INSTANCE_ID", "unknown")
+
 
 def get_db_connection():
-    """Создаёт новое TCP-подключение к отдельному сервису PostgreSQL."""
     return psycopg2.connect(
         host=os.getenv("DB_HOST", "127.0.0.1"),
         port=os.getenv("DB_PORT", "5432"),
@@ -28,14 +30,22 @@ def get_db_connection():
     )
 
 
+@app.get("/api/whoami")
+def whoami():
+    response = jsonify({"backend_id": INSTANCE_ID})
+    response.headers["X-Backend-ID"] = INSTANCE_ID
+    return response
+
+
 @app.get("/health")
 def health():
-    return jsonify({"status": "ok"})
+    response = jsonify({"status": "ok", "instance_id": INSTANCE_ID})
+    response.headers["X-Backend-ID"] = INSTANCE_ID
+    return response
 
 
 @app.get("/")
 def index():
-    """Фронтенд отдаётся Flask, поэтому API и HTML находятся на одном origin."""
     return send_from_directory(FRONTEND_DIR, "index.html")
 
 
@@ -68,10 +78,13 @@ def get_notes():
                 "id": row[0],
                 "text": row[1],
                 "created_at": row[2].isoformat(),
+                "instance_id": INSTANCE_ID,
             }
             for row in rows
         ]
-        return jsonify(notes)
+        response = jsonify(notes)
+        response.headers["X-Backend-ID"] = INSTANCE_ID
+        return response
 
     except OperationalError:
         app.logger.exception("Не удалось подключиться к PostgreSQL")
@@ -108,16 +121,15 @@ def create_note():
                 )
                 row = cursor.fetchone()
 
-        return (
-            jsonify(
-                {
-                    "id": row[0],
-                    "text": row[1],
-                    "created_at": row[2].isoformat(),
-                }
-            ),
-            201,
-        )
+        result = {
+            "id": row[0],
+            "text": row[1],
+            "created_at": row[2].isoformat(),
+            "instance_id": INSTANCE_ID,
+        }
+        response = jsonify(result)
+        response.headers["X-Backend-ID"] = INSTANCE_ID
+        return response, 201
 
     except OperationalError:
         app.logger.exception("Не удалось подключиться к PostgreSQL")
@@ -128,4 +140,5 @@ def create_note():
 
 
 if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=5000, debug=True)
+    port = int(os.getenv("PORT", "5000"))
+    app.run(host="127.0.0.1", port=port, debug=False)

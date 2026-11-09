@@ -1,0 +1,102 @@
+name: Lab 1 integration check
+
+on:
+  push:
+    branches: [Lab-1]
+
+permissions:
+  contents: read
+
+jobs:
+  nginx-and-backends:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: notes_db
+          POSTGRES_USER: notes_user
+          POSTGRES_PASSWORD: notes_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U notes_user -d notes_db"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install lab packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y nginx openssl apache2-utils curl postgresql-client python3-venv
+
+      - name: Initialize database
+        env:
+          PGPASSWORD: notes_password
+        run: |
+          psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -U notes_user -d notes_db -f backend/init.sql
+
+      - name: Configure local hosts, TLS, auth, and nginx
+        run: |
+          printf '127.0.0.1 notes.local second.local\n' | sudo tee -a /etc/hosts
+          sudo cp -a "$GITHUB_WORKSPACE" /opt/notes-lab
+          sudo chmod -R a+rX /opt/notes-lab
+          sudo install -d -m 0755 /etc/nginx/lab1-certs /etc/nginx/lab1-auth
+          sudo openssl req -x509 -nodes -days 1 -newkey rsa:2048 \
+            -keyout /etc/nginx/lab1-certs/notes.local.key \
+            -out /etc/nginx/lab1-certs/notes.local.crt \
+            -subj "/C=RU/O=Notes Lab/CN=notes.local" \
+            -addext "subjectAltName=DNS:notes.local,DNS:second.local,IP:127.0.0.1"
+          sudo htpasswd -bc /etc/nginx/lab1-auth/notes.htpasswd admin lab1admin
+          sudo chmod 640 /etc/nginx/lab1-auth/notes.htpasswd
+          sudo chown root:www-data /etc/nginx/lab1-auth/notes.htpasswd
+          sudo cp nginx/snippets/proxy_params_lab1.conf /etc/nginx/snippets/proxy_params_lab1.conf
+          sudo cp nginx/sites-available/lab1.conf /etc/nginx/sites-available/lab1.conf
+          sudo rm -f /etc/nginx/sites-enabled/default
+          sudo ln -sfn /etc/nginx/sites-available/lab1.conf /etc/nginx/sites-enabled/lab1.conf
+          sudo nginx -t
+          sudo nginx
+
+      - name: Install Python dependencies
+        run: |
+          python3 -m venv backend/.venv
+          backend/.venv/bin/pip install -r backend/requirements.txt
+          chmod +x scripts/*.sh
+
+      - name: Start Flask instances
+        env:
+          PYTHON_BIN: ${{ github.workspace }}/backend/.venv/bin/python
+          DB_HOST: 127.0.0.1
+          DB_PORT: 5432
+          DB_NAME: notes_db
+          DB_USER: notes_user
+          DB_PASSWORD: notes_password
+        run: ./scripts/run_backend.sh
+
+      - name: Run integration checks
+        env:
+          ADMIN_USER: admin
+          ADMIN_PASSWORD: lab1admin
+          PYTHON_BIN: ${{ github.workspace }}/backend/.venv/bin/python
+          DB_HOST: 127.0.0.1
+          DB_PORT: 5432
+          DB_NAME: notes_db
+          DB_USER: notes_user
+          DB_PASSWORD: notes_password
+        run: ./scripts/check.sh 2>&1 | tee lab1-check.log
+
+      - name: Show nginx error logs
+        if: always()
+        run: |
+          sudo tail -n 100 /var/log/nginx/error.log /var/log/nginx/notes-lab-error.log /var/log/nginx/second-lab-error.log || true
+
+      - name: Save check log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lab1-check-log
+          path: lab1-check.log
